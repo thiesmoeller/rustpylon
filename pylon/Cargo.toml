@@ -1,0 +1,8 @@
+[package]
+name = "pylon"
+version = "0.1.0"
+authors = ["Falco Hirschenberger <falco.hirschenberger@itwm.fraunhofer.de>"]
+edition = "2018"
+
+[dependencies]
+pylon-sys = {version = "0.1", path = "../pylon-sys"}
