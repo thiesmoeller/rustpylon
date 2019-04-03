@@ -1,7 +1,8 @@
 [package]
 name = "pylon"
 version = "0.1.0"
-authors = ["Falco Hirschenberger <falco.hirschenberger@itwm.fraunhofer.de>"]
+authors = ["Falco Hirschenberger <falco.hirschenberger@gmail.com>"]
+license = "MIT"
 edition = "2018"
 
 [dependencies]

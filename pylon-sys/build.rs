@@ -29,6 +29,7 @@ fn main() {
         .clang_arg(format!("-I{}", pylon_include))
         .clang_arg(format!("-L{}", pylon_libs))
         .default_enum_style(bindgen::EnumVariation::Rust)
+        .opaque_type("PYLON_DEVICE_HANDLE")
         // Finish the builder and generate the bindings.
         .generate()
         // Unwrap the Result and panic on failure.
