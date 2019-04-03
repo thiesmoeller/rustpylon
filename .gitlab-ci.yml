@@ -7,13 +7,11 @@ job:
     tags:
     - docker
 
-
 # Use cargo to test the project
-test:
-    cargo:
-        script:
-        - rustc --version && cargo --version
-        - cd pylon-sys
-        - cargo test --all --verbose
-        - cd ../pylon
-        - cargo test --all --verbose
+cargo:
+    script:
+    - rustc --version && cargo --version
+    - cd pylon-sys
+    - cargo test --all --verbose
+    - cd ../pylon
+    - cargo test --all --verbose
