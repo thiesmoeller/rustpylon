@@ -5,6 +5,15 @@ authors = ["Falco Hirschenberger <falco.hirschenberger@gmail.com>"]
 license = "MIT"
 edition = "2018"
 build = "build.rs"
+description = "Low-level API bindings for Basler Cameras"
+repository = "https://gitlab.com/hirschenberger/pylon"
+readme = "README.md"
+keywords = ["basler", "camera", "bindings", "pylon", "image"]
+categories = ["api-bindings", "external-ffi-bindings", "hardware-support", "multimedia::images"]
+
+[badges]
+gitlab = { repository = "https://gitlab.com/hirschenberger/pylon", branch = "master" }
+maintenance = { status = "experimental" }
 
 [dependencies]
 

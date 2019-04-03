@@ -4,6 +4,15 @@ version = "0.1.0"
 authors = ["Falco Hirschenberger <falco.hirschenberger@gmail.com>"]
 license = "MIT"
 edition = "2018"
+description = "High-level API bindings for Basler Cameras"
+repository = "https://gitlab.com/hirschenberger/pylon"
+readme = "README.md"
+keywords = ["basler", "camera", "pylon", "image"]
+categories = ["hardware-support", "multimedia::images"]
+
+[badges]
+gitlab = { repository = "https://gitlab.com/hirschenberger/pylon", branch = "master" }
+maintenance = { status = "experimental" }
 
 [dependencies]
 pylon-sys = {version = "0.1", path = "../pylon-sys"}
