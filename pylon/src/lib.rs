@@ -1,5 +1,6 @@
-use pylon_sys;
-use std::ffi::CString;
+use image::{DynamicImage, GrayImage};
+use pylon_sys::{self, EPylonGrabStatus, EPylonPixelType};
+use std::ffi::{c_void, CString};
 use std::sync::{Once, ONCE_INIT};
 use std::{error::Error, fmt};
 
@@ -48,6 +49,14 @@ impl PylonError {
             api_detail,
         }
     }
+
+    fn with_msg(msg: &str) -> PylonError {
+        PylonError {
+            errno: 1000,
+            api_msg: msg.to_owned(),
+            api_detail: "".to_owned(),
+        }
+    }
 }
 
 impl Error for PylonError {}
@@ -65,12 +74,7 @@ impl fmt::Display for PylonError {
 #[derive(Debug)]
 pub struct Device {
     handle: pylon_sys::PYLON_DEVICE_HANDLE,
-}
-
-impl fmt::Display for Device {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "DD")
-    }
+    grab_buffer: Vec<u8>,
 }
 
 macro_rules! check_res {
@@ -93,10 +97,16 @@ impl Device {
     pub fn create_device_by_index(idx: usize) -> Result<Self, PylonError> {
         let mut handle = 0;
         let res = unsafe { pylon_sys::PylonCreateDeviceByIndex(idx, &mut handle) };
-        check_res!(res, Device { handle })
+        check_res!(
+            res,
+            Device {
+                handle,
+                grab_buffer: Vec::new()
+            }
+        )
     }
 
-    pub fn open(&self) -> Result<(), PylonError> {
+    pub fn open(&mut self) -> Result<(), PylonError> {
         let res = unsafe {
             pylon_sys::PylonDeviceOpen(
                 self.handle,
@@ -104,7 +114,12 @@ impl Device {
                     as i32,
             )
         };
-        check_res!(res, ())
+        check_res!(res, ())?;
+
+        // query payload size and allocate memory for grabbing frames
+        let payload_size = self.get_integer_feature("PayloadSize")?;
+        self.grab_buffer.resize(payload_size as usize, 0);
+        Ok(())
     }
 
     pub fn feature_is_available(&self, feat: &str) -> bool {
@@ -123,26 +138,79 @@ impl Device {
     }
 
     pub fn set_integer_feature(&self, key: &str, value: i64) -> Result<(), PylonError> {
-        let res = unsafe {
+        unsafe {
             if pylon_sys::PylonDeviceFeatureIsWritable(self.handle, key.as_ptr() as *mut i8) {
-                1000
+                Err(PylonError::with_msg(&format!(
+                    "Device Feature: {} is not writable.",
+                    key
+                )))
             } else {
-                pylon_sys::PylonDeviceSetIntegerFeature(self.handle, key.as_ptr() as *mut i8, value)
+                let res = pylon_sys::PylonDeviceSetIntegerFeature(
+                    self.handle,
+                    key.as_ptr() as *mut i8,
+                    value,
+                );
+                check_res!(res, ())
             }
-        };
-        check_res!(res, ())
+        }
     }
 
     pub fn get_integer_feature(&self, key: &str) -> Result<i64, PylonError> {
-        let mut value = 0;
-        let res = unsafe {
+        unsafe {
             if pylon_sys::PylonDeviceFeatureIsReadable(self.handle, key.as_ptr() as *mut i8) {
-                1000
+                Err(PylonError::with_msg(&format!(
+                    "Device Feature: {} is not readable.",
+                    key
+                )))
             } else {
-                pylon_sys::PylonDeviceGetIntegerFeature(self.handle, key.as_ptr() as *mut i8, &mut value)
+                let mut value = 0;
+                let res = pylon_sys::PylonDeviceGetIntegerFeature(
+                    self.handle,
+                    key.as_ptr() as *mut i8,
+                    &mut value,
+                );
+                check_res!(res, value)
             }
+        }
+    }
+
+    pub fn grab_single_frame(&mut self) -> Result<DynamicImage, PylonError> {
+        let mut buffer_ready = false;
+        let mut grab_result = pylon_sys::PylonGrabResult_t::default();
+        let res = unsafe {
+            pylon_sys::PylonDeviceGrabSingleFrame(
+                self.handle,
+                0,
+                self.grab_buffer.as_mut_ptr() as *mut c_void,
+                self.grab_buffer.len(),
+                &mut grab_result,
+                &mut buffer_ready,
+                500,
+            )
         };
-        check_res!(res, value)
+
+        check_res!(res, ())?;
+
+        if !buffer_ready {
+            Err(PylonError::with_msg("Grabbing timeout"))
+        } else if grab_result.Status != EPylonGrabStatus::Grabbed {
+            Err(PylonError::with_msg(&format!(
+                "Frame was not grabbed successfully. Status: {:#?}",
+                grab_result.Status
+            )))
+        } else {
+            match grab_result.PixelType {
+                EPylonPixelType::PixelType_Mono8 => GrayImage::from_vec(
+                    grab_result.SizeX as u32,
+                    grab_result.SizeY as u32,
+                    self.grab_buffer.clone(),
+                )
+                .map_or(Err(PylonError::with_last_error(1004)), |i| {
+                    Ok(DynamicImage::ImageLuma8(i))
+                }),
+                _ => unimplemented!(),
+            }
+        }
     }
 }
 

@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 pylon-sys = {version = "0.1", path = "../pylon-sys"}
+image = "0.21"
