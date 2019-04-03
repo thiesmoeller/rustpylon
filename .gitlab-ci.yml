@@ -4,7 +4,7 @@
 image: "registry.gitlab.com/hirschenberger/pylon:rustup-all"
 
 job:
-  tags:
+    tags:
     - docker
 
 
@@ -12,8 +12,8 @@ job:
 test:
     cargo:
         script:
-            - rustc --version && cargo --version
-            - cd pylon-sys
-            - cargo test --all --verbose
-            - cd ../pylon
-            - cargo test --all --verbose
+        - rustc --version && cargo --version
+        - cd pylon-sys
+        - cargo test --all --verbose
+        - cd ../pylon
+        - cargo test --all --verbose
