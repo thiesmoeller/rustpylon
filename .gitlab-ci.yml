@@ -1,15 +1,17 @@
 image: "registry.gitlab.com/hirschenberger/pylon:rustup-all"
 
-#job:
-#    tags:
-#    - docker
-
-# Use cargo to test the project
-cargo:
-    script:
+before_script:
     - source /opt/pylon5/bin/pylon-setup-env.sh /opt/pylon5
     - rustc --version && cargo --version
+    - export LD_LIBRARY_PATH=/opt/pylon5/lib64
+
+
+pylon-sys:
+    script:
     - cd pylon-sys
     - cargo test --all --verbose
-    - cd ../pylon
+    
+pylon:
+    script:
+    - cd pylon
     - cargo test --all --verbose
