@@ -7,6 +7,7 @@ image: "registry.gitlab.com/hirschenberger/pylon:rustup-all"
 # Use cargo to test the project
 cargo:
     script:
+    - source /opt/pylon5/bin/pylon-setup-env.sh /opt/pylon5
     - rustc --version && cargo --version
     - cd pylon-sys
     - cargo test --all --verbose
