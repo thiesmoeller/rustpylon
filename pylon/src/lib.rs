@@ -123,14 +123,17 @@ impl Device {
     }
 
     pub fn feature_is_available(&self, feat: &str) -> bool {
-        unsafe { pylon_sys::PylonDeviceFeatureIsAvailable(self.handle, feat.as_ptr() as *mut i8) }
+        let feat = CString::new(feat).unwrap();
+        unsafe { pylon_sys::PylonDeviceFeatureIsAvailable(self.handle, feat.as_ptr()) }
     }
 
     pub fn set_string_feature(&self, key: &str, value: &str) -> Result<(), PylonError> {
+        let key = CString::new(key).unwrap();
+        let value = CString::new(value).unwrap();
         let res = unsafe {
             pylon_sys::PylonDeviceFeatureFromString(
                 self.handle,
-                key.as_ptr() as *mut i8,
+                key.as_ptr(),
                 value.as_ptr() as *mut i8,
             )
         };
@@ -138,37 +141,54 @@ impl Device {
     }
 
     pub fn set_integer_feature(&self, key: &str, value: i64) -> Result<(), PylonError> {
+        let key = CString::new(key).unwrap();
         unsafe {
-            if pylon_sys::PylonDeviceFeatureIsWritable(self.handle, key.as_ptr() as *mut i8) {
+            if !pylon_sys::PylonDeviceFeatureIsWritable(self.handle, key.as_ptr()) {
                 Err(PylonError::with_msg(&format!(
-                    "Device Feature: {} is not writable.",
+                    "Device Feature: {:?} is not writable.",
                     key
                 )))
             } else {
-                let res = pylon_sys::PylonDeviceSetIntegerFeature(
-                    self.handle,
-                    key.as_ptr() as *mut i8,
-                    value,
-                );
+                let res = pylon_sys::PylonDeviceSetIntegerFeature(self.handle, key.as_ptr(), value);
                 check_res!(res, ())
             }
         }
     }
 
-    pub fn get_integer_feature(&self, key: &str) -> Result<i64, PylonError> {
+    pub fn get_string_feature(&self, key: &str) -> Result<String, PylonError> {
+        let key = CString::new(key).unwrap();
         unsafe {
-            if pylon_sys::PylonDeviceFeatureIsReadable(self.handle, key.as_ptr() as *mut i8) {
+            if !pylon_sys::PylonDeviceFeatureIsReadable(self.handle, key.as_ptr()) {
                 Err(PylonError::with_msg(&format!(
-                    "Device Feature: {} is not readable.",
+                    "Device Feature: {:?} is not readable.",
+                    key
+                )))
+            } else {
+                let value = vec![0u8; 256];
+                let mut size = value.len();
+                let res = pylon_sys::PylonDeviceFeatureToString(
+                    self.handle,
+                    key.as_ptr(),
+                    value.as_ptr() as *mut i8,
+                    &mut size,
+                );
+                check_res!(res, String::from_utf8(value).unwrap())
+            }
+        }
+    }
+
+    pub fn get_integer_feature(&self, key: &str) -> Result<i64, PylonError> {
+        let key = CString::new(key).unwrap();
+        unsafe {
+            if !pylon_sys::PylonDeviceFeatureIsReadable(self.handle, key.as_ptr()) {
+                Err(PylonError::with_msg(&format!(
+                    "Device Feature: {:?} is not readable.",
                     key
                 )))
             } else {
                 let mut value = 0;
-                let res = pylon_sys::PylonDeviceGetIntegerFeature(
-                    self.handle,
-                    key.as_ptr() as *mut i8,
-                    &mut value,
-                );
+                let res =
+                    pylon_sys::PylonDeviceGetIntegerFeature(self.handle, key.as_ptr(), &mut value);
                 check_res!(res, value)
             }
         }
