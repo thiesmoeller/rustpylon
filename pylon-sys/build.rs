@@ -1,7 +1,7 @@
 use bindgen;
 use std::env;
-use std::path::{PathBuf};
-//use std::process::Command;
+use std::path::{Path, PathBuf};
+use std::fs;
 
 fn main() {
     let pylon_root = env!("PYLON_ROOT");
@@ -11,12 +11,20 @@ fn main() {
     println!("cargo:rustc-link-lib=pylonc");
     println!("cargo:rustc-link-lib=pylonbase");
     println!("cargo:rustc-link-lib=pylonutility");
-    println!("cargo:rustc-link-lib=GenApi_gcc_v3_1_Basler_pylon");
-    println!("cargo:rustc-link-lib=GCBase_gcc_v3_1_Basler_pylon");
-    println!("cargo:rustc-link-lib=Log_gcc_v3_1_Basler_pylon");
-    println!("cargo:rustc-link-lib=MathParser_gcc_v3_1_Basler_pylon");
-    println!("cargo:rustc-link-lib=XmlParser_gcc_v3_1_Basler_pylon");
-    println!("cargo:rustc-link-lib=NodeMapData_gcc_v3_1_Basler_pylon");
+
+    // find all additional libs in the pylon libs dir. They may have different names, so glob them
+    let additional = &["libGenApi_gcc", "libGCBase_gcc", "libLog_gcc", "libMathParser_gcc", "libXmlParser_gcc", "libNodeMapData_gcc" ];
+    if let Ok(paths) = fs::read_dir(&pylon_libs) {
+        for path in paths {
+            if let Ok(p) = path {
+                let file = p.file_name().into_string().unwrap();
+                if additional.iter().any(|lib| file.starts_with(lib)) {
+                    println!("cargo:rustc-link-lib={}", file.trim_start_matches("lib").trim_end_matches(".so"));                
+                }
+            }
+        }
+    };
+
     println!("cargo:rustc-link-search={}", pylon_libs);
 
     // The bindgen::Builder is the main entry point
