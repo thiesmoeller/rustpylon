@@ -14,6 +14,17 @@ pub fn initialize() {
     })
 }
 
+macro_rules! check_res {
+    ($res:expr, $ret:expr) => {
+        if $res != 0 {
+            dbg!($res);
+            Err(PylonError::with_last_error($res))
+        } else {
+            Ok($ret)
+        }
+    };
+}
+
 #[derive(Debug)]
 pub struct PylonError {
     errno: pylon_sys::HRESULT,
@@ -71,21 +82,61 @@ impl fmt::Display for PylonError {
     }
 }
 
+pub struct StreamGrabber {
+    handle: pylon_sys::PYLON_STREAMGRABBER_HANDLE,
+    waitobject: pylon_sys::PYLON_WAITOBJECT_HANDLE,
+    grab_buffers: Vec<(pylon_sys::PYLON_STREAMBUFFER_HANDLE, Vec<u8>)>
+}
+
+impl StreamGrabber {
+    pub fn grab(&mut self) -> Result<DynamicImage, PylonError> {
+        let mut is_ready = false;
+        let res = unsafe {
+            pylon_sys::PylonWaitObjectWait(self.waitobject, 1000, &mut is_ready)
+        };
+
+        check_res!(res, ())?;
+
+        if !is_ready {
+            return Err(PylonError::with_msg("Timeout grabbing images"));
+        }
+
+        let mut grab_result = pylon_sys::PylonGrabResult_t::default();
+        let res = unsafe {
+            pylon_sys::PylonStreamGrabberRetrieveResult(self.handle, &mut grab_result, &mut is_ready)
+        };
+
+        check_res!(res, ())?;
+
+        let buffer_idx = grab_result.Context as usize;
+        let image_res = match grab_result.PixelType {
+                EPylonPixelType::PixelType_Mono8 => {
+                    GrayImage::from_vec(
+                    grab_result.SizeX as u32,
+                    grab_result.SizeY as u32,
+                    self.grab_buffers[buffer_idx].1.clone()).map_or(Err(PylonError::with_last_error(1004)), |i| {
+                    Ok(DynamicImage::ImageLuma8(i))
+                    })
+                },
+                _ => unimplemented!(),
+        };
+
+        let res = unsafe {
+            pylon_sys::PylonStreamGrabberQueueBuffer(self.handle, self.grab_buffers[buffer_idx].0, buffer_idx as *const c_void)
+        };
+
+        check_res!(res, ())?;
+
+        image_res
+    }
+}
+
 #[derive(Debug)]
 pub struct Device {
     handle: pylon_sys::PYLON_DEVICE_HANDLE,
     grab_buffer: Vec<u8>,
 }
 
-macro_rules! check_res {
-    ($res:expr, $ret:expr) => {
-        if $res != 0 {
-            Err(PylonError::with_last_error($res))
-        } else {
-            Ok($ret)
-        }
-    };
-}
 
 impl Device {
     pub fn enumerate_devices() -> Result<usize, PylonError> {
@@ -120,6 +171,90 @@ impl Device {
         let payload_size = self.get_integer_feature("PayloadSize")?;
         self.grab_buffer.resize(payload_size as usize, 0);
         Ok(())
+    }
+
+    pub fn get_stream_grabber(&mut self, channel: usize) -> Result<StreamGrabber, PylonError> {
+        if self.stream_grabber_channels()? <= channel {
+            return Err(PylonError::with_msg(&format!(
+                "No streamgrabber channel {} available.",
+                channel
+            )));
+        }
+
+        let mut grabber_handle = 0;
+        let res = unsafe {
+            pylon_sys::PylonDeviceGetStreamGrabber(self.handle, channel, &mut grabber_handle)
+        };
+
+        check_res!(res, ())?;
+
+        let res = unsafe {
+            pylon_sys::PylonStreamGrabberOpen(grabber_handle)
+        };
+
+        check_res!(res, ())?;
+
+
+        let mut waitobject = 0;
+        let res = unsafe {
+            pylon_sys::PylonStreamGrabberGetWaitObject(grabber_handle, &mut waitobject)
+        };
+
+        check_res!(res, ())?;
+
+        let payload_size = self.get_integer_feature("PayloadSize")?;
+
+        const BUFFERS: usize = 5;
+        let mut grab_buffers = Vec::new();
+        (0..BUFFERS).for_each(|_| grab_buffers.push((0, vec![0; payload_size as usize])));
+
+        let res = unsafe {
+            pylon_sys::PylonStreamGrabberSetMaxNumBuffer(grabber_handle, BUFFERS)
+        };
+
+        check_res!(res, ())?;
+
+        let res = unsafe {
+            pylon_sys::PylonStreamGrabberSetMaxBufferSize(grabber_handle, payload_size as usize)
+        };
+
+        check_res!(res, ())?;
+
+        let res = unsafe {
+            pylon_sys::PylonStreamGrabberPrepareGrab(grabber_handle)
+        };
+
+        check_res!(res, ())?;
+
+        for i in 0..BUFFERS {
+            unsafe {
+                let res = pylon_sys::PylonStreamGrabberRegisterBuffer(grabber_handle, grab_buffers[i].1.as_mut_ptr() as *mut c_void, payload_size as usize, &mut grab_buffers[i].0);
+                check_res!(res, ())?;
+
+                let res = pylon_sys::PylonStreamGrabberQueueBuffer(grabber_handle, grab_buffers[i].0, i as *const c_void);
+                check_res!(res, ())?;
+            }
+        }
+
+        check_res!(res, StreamGrabber{ handle: grabber_handle, waitobject, grab_buffers })
+    }
+
+    pub fn execute_command(&mut self, cmd: &str) -> Result<(), PylonError> {
+        let cmd = CString::new(cmd).unwrap();
+        let res = unsafe {
+            pylon_sys::PylonDeviceExecuteCommandFeature(self.handle, cmd.as_ptr())
+        };
+
+        check_res!(res, ())
+    }
+
+    pub fn stream_grabber_channels(&mut self) -> Result<usize, PylonError> {
+        let mut channels = 0;
+        let res = unsafe {
+            pylon_sys::PylonDeviceGetNumStreamGrabberChannels(self.handle, &mut channels)
+        };
+
+        check_res!(res, channels)
     }
 
     pub fn feature_is_available(&self, feat: &str) -> bool {

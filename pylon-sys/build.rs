@@ -19,7 +19,7 @@ fn main() {
             if let Ok(p) = path {
                 let file = p.file_name().into_string().unwrap();
                 if additional.iter().any(|lib| file.starts_with(lib)) {
-                    println!("cargo:rustc-link-lib={}", file.trim_start_matches("lib").trim_end_matches(".so"));                
+                    println!("cargo:rustc-link-lib={}", file.trim_start_matches("lib").trim_end_matches(".so"));
                 }
             }
         }
@@ -39,6 +39,9 @@ fn main() {
         .default_enum_style(bindgen::EnumVariation::Rust)
         .derive_default(true)
         .opaque_type("PYLON_DEVICE_HANDLE")
+        .opaque_type("PYLON_STREAMGRABBER_HANDLE")
+        .opaque_type("PYLON_STREAMBUFFER_HANDLE")
+        .opaque_type("PYLON_WAITOBJECT_HANDLE")
         // Finish the builder and generate the bindings.
         .generate()
         // Unwrap the Result and panic on failure.

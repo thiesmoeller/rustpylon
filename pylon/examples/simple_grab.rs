@@ -12,8 +12,14 @@ fn main() -> Result<(), Box<Error>> {
   let s = dev.get_string_feature("DeviceModelName")?;
   println!("Device: {}", s);
 
-  let frame = dev.grab_single_frame()?.to_luma();
-  println!("Frame: {}x{}", frame.width(), frame.height());
+  // dev.set_string_feature("AcquisitionMode", "Continuous")?;
 
+  for n in 1..100 {
+    let frame = dev.grab_single_frame()?.to_luma();
+    println!("Frame: {}x{}", frame.width(), frame.height());
+    let path = format!("/tmp/image_{:02}.jpg", n);
+    println!("Save to: {}", path);
+    //frame.save(path)?;
+  }
   Ok(())
 }
