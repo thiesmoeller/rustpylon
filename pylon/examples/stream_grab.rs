@@ -12,12 +12,13 @@ fn main() -> Result<(), Box<Error>> {
   let s = dev.get_string_feature("DeviceModelName")?;
   println!("Device: {}", s);
 
-  dev.set_string_feature("TriggerSelector", "AcquisitionStart")?;
-  dev.set_string_feature("TriggerMode", "Off")?;
-  dev.set_string_feature("TriggerSelector", "FrameStart")?;
-  dev.set_string_feature("TriggerMode", "Off")?;
+  // dev.set_string_feature("TriggerSelector", "AcquisitionStart")?;
+  // dev.set_string_feature("TriggerMode", "Off")?;
+  // dev.set_string_feature("TriggerSelector", "FrameStart")?;
+  // dev.set_string_feature("TriggerMode", "Off")?;
 
   dev.set_string_feature("AcquisitionMode", "Continuous")?;
+  dev.set_float_feature("AcquisitionFrameRateAbs", 20.0)?;
   let mut stream = dev.get_stream_grabber(0)?;
   dev.execute_command("AcquisitionStart")?;
 
@@ -29,7 +30,6 @@ fn main() -> Result<(), Box<Error>> {
   }
 
   dev.execute_command("AcquisitionStop")?;
-
 
   Ok(())
 }

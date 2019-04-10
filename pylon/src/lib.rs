@@ -85,15 +85,13 @@ impl fmt::Display for PylonError {
 pub struct StreamGrabber {
     handle: pylon_sys::PYLON_STREAMGRABBER_HANDLE,
     waitobject: pylon_sys::PYLON_WAITOBJECT_HANDLE,
-    grab_buffers: Vec<(pylon_sys::PYLON_STREAMBUFFER_HANDLE, Vec<u8>)>
+    grab_buffers: Vec<(pylon_sys::PYLON_STREAMBUFFER_HANDLE, Vec<u8>)>,
 }
 
 impl StreamGrabber {
     pub fn grab(&mut self) -> Result<DynamicImage, PylonError> {
         let mut is_ready = false;
-        let res = unsafe {
-            pylon_sys::PylonWaitObjectWait(self.waitobject, 1000, &mut is_ready)
-        };
+        let res = unsafe { pylon_sys::PylonWaitObjectWait(self.waitobject, 1000, &mut is_ready) };
 
         check_res!(res, ())?;
 
@@ -103,26 +101,34 @@ impl StreamGrabber {
 
         let mut grab_result = pylon_sys::PylonGrabResult_t::default();
         let res = unsafe {
-            pylon_sys::PylonStreamGrabberRetrieveResult(self.handle, &mut grab_result, &mut is_ready)
+            pylon_sys::PylonStreamGrabberRetrieveResult(
+                self.handle,
+                &mut grab_result,
+                &mut is_ready,
+            )
         };
 
         check_res!(res, ())?;
 
         let buffer_idx = grab_result.Context as usize;
         let image_res = match grab_result.PixelType {
-                EPylonPixelType::PixelType_Mono8 => {
-                    GrayImage::from_vec(
-                    grab_result.SizeX as u32,
-                    grab_result.SizeY as u32,
-                    self.grab_buffers[buffer_idx].1.clone()).map_or(Err(PylonError::with_last_error(1004)), |i| {
-                    Ok(DynamicImage::ImageLuma8(i))
-                    })
-                },
-                _ => unimplemented!(),
+            EPylonPixelType::PixelType_Mono8 => GrayImage::from_vec(
+                grab_result.SizeX as u32,
+                grab_result.SizeY as u32,
+                self.grab_buffers[buffer_idx].1.clone(),
+            )
+            .map_or(Err(PylonError::with_last_error(1004)), |i| {
+                Ok(DynamicImage::ImageLuma8(i))
+            }),
+            _ => unimplemented!(),
         };
 
         let res = unsafe {
-            pylon_sys::PylonStreamGrabberQueueBuffer(self.handle, self.grab_buffers[buffer_idx].0, buffer_idx as *const c_void)
+            pylon_sys::PylonStreamGrabberQueueBuffer(
+                self.handle,
+                self.grab_buffers[buffer_idx].0,
+                buffer_idx as *const c_void,
+            )
         };
 
         check_res!(res, ())?;
@@ -136,7 +142,6 @@ pub struct Device {
     handle: pylon_sys::PYLON_DEVICE_HANDLE,
     grab_buffer: Vec<u8>,
 }
-
 
 impl Device {
     pub fn enumerate_devices() -> Result<usize, PylonError> {
@@ -188,17 +193,13 @@ impl Device {
 
         check_res!(res, ())?;
 
-        let res = unsafe {
-            pylon_sys::PylonStreamGrabberOpen(grabber_handle)
-        };
+        let res = unsafe { pylon_sys::PylonStreamGrabberOpen(grabber_handle) };
 
         check_res!(res, ())?;
 
-
         let mut waitobject = 0;
-        let res = unsafe {
-            pylon_sys::PylonStreamGrabberGetWaitObject(grabber_handle, &mut waitobject)
-        };
+        let res =
+            unsafe { pylon_sys::PylonStreamGrabberGetWaitObject(grabber_handle, &mut waitobject) };
 
         check_res!(res, ())?;
 
@@ -208,9 +209,7 @@ impl Device {
         let mut grab_buffers = Vec::new();
         (0..BUFFERS).for_each(|_| grab_buffers.push((0, vec![0; payload_size as usize])));
 
-        let res = unsafe {
-            pylon_sys::PylonStreamGrabberSetMaxNumBuffer(grabber_handle, BUFFERS)
-        };
+        let res = unsafe { pylon_sys::PylonStreamGrabberSetMaxNumBuffer(grabber_handle, BUFFERS) };
 
         check_res!(res, ())?;
 
@@ -220,30 +219,42 @@ impl Device {
 
         check_res!(res, ())?;
 
-        let res = unsafe {
-            pylon_sys::PylonStreamGrabberPrepareGrab(grabber_handle)
-        };
+        let res = unsafe { pylon_sys::PylonStreamGrabberPrepareGrab(grabber_handle) };
 
         check_res!(res, ())?;
 
         for i in 0..BUFFERS {
             unsafe {
-                let res = pylon_sys::PylonStreamGrabberRegisterBuffer(grabber_handle, grab_buffers[i].1.as_mut_ptr() as *mut c_void, payload_size as usize, &mut grab_buffers[i].0);
+                let res = pylon_sys::PylonStreamGrabberRegisterBuffer(
+                    grabber_handle,
+                    grab_buffers[i].1.as_mut_ptr() as *mut c_void,
+                    payload_size as usize,
+                    &mut grab_buffers[i].0,
+                );
                 check_res!(res, ())?;
 
-                let res = pylon_sys::PylonStreamGrabberQueueBuffer(grabber_handle, grab_buffers[i].0, i as *const c_void);
+                let res = pylon_sys::PylonStreamGrabberQueueBuffer(
+                    grabber_handle,
+                    grab_buffers[i].0,
+                    i as *const c_void,
+                );
                 check_res!(res, ())?;
             }
         }
 
-        check_res!(res, StreamGrabber{ handle: grabber_handle, waitobject, grab_buffers })
+        check_res!(
+            res,
+            StreamGrabber {
+                handle: grabber_handle,
+                waitobject,
+                grab_buffers
+            }
+        )
     }
 
     pub fn execute_command(&mut self, cmd: &str) -> Result<(), PylonError> {
         let cmd = CString::new(cmd).unwrap();
-        let res = unsafe {
-            pylon_sys::PylonDeviceExecuteCommandFeature(self.handle, cmd.as_ptr())
-        };
+        let res = unsafe { pylon_sys::PylonDeviceExecuteCommandFeature(self.handle, cmd.as_ptr()) };
 
         check_res!(res, ())
     }
@@ -285,6 +296,21 @@ impl Device {
                 )))
             } else {
                 let res = pylon_sys::PylonDeviceSetIntegerFeature(self.handle, key.as_ptr(), value);
+                check_res!(res, ())
+            }
+        }
+    }
+
+    pub fn set_float_feature(&self, key: &str, value: f64) -> Result<(), PylonError> {
+        let key = CString::new(key).unwrap();
+        unsafe {
+            if !pylon_sys::PylonDeviceFeatureIsWritable(self.handle, key.as_ptr()) {
+                Err(PylonError::with_msg(&format!(
+                    "Device Feature: {:?} is not writable.",
+                    key
+                )))
+            } else {
+                let res = pylon_sys::PylonDeviceSetFloatFeature(self.handle, key.as_ptr(), value);
                 check_res!(res, ())
             }
         }
