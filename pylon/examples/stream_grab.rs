@@ -24,9 +24,9 @@ fn main() -> Result<(), Box<Error>> {
 
   for n in 0..100 {
     let img = stream.grab()?;
-    let path = format!("/tmp/image_{:02}.jpg", n);
+    let path = format!("/tmp/image_{:02}.png", n);
     println!("Save to: {}", path);
-    //img.save(path)?;
+    img.save(path)?;
   }
 
   dev.execute_command("AcquisitionStop")?;

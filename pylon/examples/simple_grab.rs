@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<Error>> {
     println!("Frame: {}x{}", frame.width(), frame.height());
     let path = format!("/tmp/image_{:02}.jpg", n);
     println!("Save to: {}", path);
-    //frame.save(path)?;
+    frame.save(path)?;
   }
   Ok(())
 }
