@@ -151,6 +151,13 @@ impl Device {
     }
 
     pub fn create_device_by_index(idx: usize) -> Result<Self, PylonError> {
+        if idx >= Self::enumerate_devices()? {
+            return Err(PylonError::with_msg(&format!(
+                "No device with index: {} available.",
+                idx
+            )));
+        }
+
         let mut handle = 0;
         checked!(
             pylon_sys::PylonCreateDeviceByIndex(idx, &mut handle),
@@ -388,8 +395,24 @@ impl Device {
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn grab_frame() {
+        // emulate one camera with testpattern
+        env::set_var("PYLON_CAMEMU", "1");
+        super::initialize();
+        let mut dev = super::Device::create_device_by_index(0).unwrap();
+        dev.open().unwrap();
+        let frame = dev.grab_single_frame().unwrap().to_luma();
+
+        // check pixel content of shifted ramp testimage
+        for y in 0..frame.height() {
+            for x in 0..frame.width() {
+                println!("{}, {}", x, y);
+                assert_eq!((x + y) % 256, frame.get_pixel(x, y)[0] as u32);
+            }
+        }
+
     }
 }
