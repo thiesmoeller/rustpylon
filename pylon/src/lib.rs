@@ -3,6 +3,7 @@ use pylon_sys::{self, EPylonGrabStatus, EPylonPixelType};
 use std::ffi::{c_void, CString};
 use std::sync::{Once, ONCE_INIT};
 use std::{error::Error, fmt};
+use tokio::prelude::*;
 
 static PYLON_INITIALIZED: Once = ONCE_INIT;
 
@@ -90,16 +91,17 @@ pub struct StreamGrabber {
     grab_buffers: Vec<(pylon_sys::PYLON_STREAMBUFFER_HANDLE, Vec<u8>)>,
 }
 
-impl StreamGrabber {
-    pub fn grab(&mut self) -> Result<DynamicImage, PylonError> {
+impl Stream for StreamGrabber {
+    type Item = DynamicImage;
+    type Error = PylonError;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         let mut is_ready = false;
-        checked!(
-            pylon_sys::PylonWaitObjectWait(self.waitobject, 1000, &mut is_ready),
-            ()
-        )?;
+        checked!(pylon_sys::PylonWaitObjectWait(self.waitobject, 10, &mut is_ready), ());
 
         if !is_ready {
-            return Err(PylonError::with_msg("Timeout grabbing images"));
+            task::current().notify();
+            return Ok(Async::NotReady);
         }
 
         let mut grab_result = pylon_sys::PylonGrabResult_t::default();
@@ -123,7 +125,7 @@ impl StreamGrabber {
                 Ok(DynamicImage::ImageLuma8(i))
             }),
             _ => unimplemented!(),
-        };
+        }?;
 
         checked!(
             pylon_sys::PylonStreamGrabberQueueBuffer(
@@ -134,7 +136,7 @@ impl StreamGrabber {
             ()
         )?;
 
-        image_res
+        Ok(Async::Ready(Some(image_res)))
     }
 }
 
