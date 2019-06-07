@@ -2,7 +2,7 @@ use pylon;
 use std::env;
 use std::error::Error;
 
-fn main() -> Result<(), Box<Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
   pylon::initialize();
   let devices = pylon::Device::enumerate_devices()?;
   println!("Number of devices: {}", devices);
