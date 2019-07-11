@@ -36,7 +36,7 @@ fn main() {
         .header("wrapper.h")
         .clang_arg(format!("-I{}", pylon_include))
         .clang_arg(format!("-L{}", pylon_libs))
-        .default_enum_style(bindgen::EnumVariation::Rust)
+        .default_enum_style(bindgen::EnumVariation::Rust{non_exhaustive: false})
         .derive_default(true)
         .opaque_type("PYLON_DEVICE_HANDLE")
         .opaque_type("PYLON_STREAMGRABBER_HANDLE")

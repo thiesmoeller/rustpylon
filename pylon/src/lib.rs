@@ -1,10 +1,10 @@
 use image::{DynamicImage, GrayImage};
 use pylon_sys::{self, EPylonGrabStatus, EPylonPixelType};
 use std::ffi::{c_void, CString};
-use std::sync::{Once, ONCE_INIT};
+use std::sync::Once;
 use std::{error::Error, fmt};
 
-static PYLON_INITIALIZED: Once = ONCE_INIT;
+static PYLON_INITIALIZED: Once = Once::new();
 
 pub fn initialize() {
     PYLON_INITIALIZED.call_once(|| unsafe {
@@ -413,6 +413,5 @@ mod tests {
                 assert_eq!((x + y) % 256, frame.get_pixel(x, y)[0] as u32);
             }
         }
-
     }
 }
