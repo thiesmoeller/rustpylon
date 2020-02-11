@@ -40,7 +40,7 @@ impl PylonError {
         unsafe {
             pylon_sys::GenApiGetLastErrorMessage(&mut 0, &mut len);
         }
-        let mut buff = Vec::with_capacity(len);
+        let mut buff = Vec::with_capacity(len as usize);
         let api_msg = unsafe {
             pylon_sys::GenApiGetLastErrorMessage(buff.as_mut_ptr() as *mut i8, &mut len);
             CString::from_vec_unchecked(buff).into_string().unwrap()
@@ -50,7 +50,7 @@ impl PylonError {
             pylon_sys::GenApiGetLastErrorDetail(&mut 0, &mut len);
         }
 
-        let mut buff = Vec::with_capacity(len);
+        let mut buff = Vec::with_capacity(len as usize);
         let api_detail = unsafe {
             pylon_sys::GenApiGetLastErrorDetail(buff.as_mut_ptr() as *mut i8, &mut len);
             CString::from_vec_unchecked(buff).into_string().unwrap()
@@ -147,7 +147,10 @@ pub struct Device {
 impl Device {
     pub fn enumerate_devices() -> Result<usize, PylonError> {
         let mut devices = 0;
-        checked!(pylon_sys::PylonEnumerateDevices(&mut devices), devices)
+        checked!(
+            pylon_sys::PylonEnumerateDevices(&mut devices),
+            devices as usize
+        )
     }
 
     pub fn create_device_by_index(idx: usize) -> Result<Self, PylonError> {
@@ -160,7 +163,7 @@ impl Device {
 
         let mut handle = 0;
         checked!(
-            pylon_sys::PylonCreateDeviceByIndex(idx, &mut handle),
+            pylon_sys::PylonCreateDeviceByIndex(idx as u64, &mut handle),
             Device {
                 handle,
                 grab_buffer: Vec::new()
@@ -194,7 +197,11 @@ impl Device {
 
         let mut grabber_handle = 0;
         checked!(
-            pylon_sys::PylonDeviceGetStreamGrabber(self.handle, channel, &mut grabber_handle),
+            pylon_sys::PylonDeviceGetStreamGrabber(
+                self.handle,
+                channel as u64,
+                &mut grabber_handle
+            ),
             ()
         )?;
 
@@ -213,12 +220,12 @@ impl Device {
         (0..BUFFERS).for_each(|_| grab_buffers.push((0, vec![0; payload_size as usize])));
 
         checked!(
-            pylon_sys::PylonStreamGrabberSetMaxNumBuffer(grabber_handle, BUFFERS),
+            pylon_sys::PylonStreamGrabberSetMaxNumBuffer(grabber_handle, BUFFERS as u64),
             ()
         )?;
 
         checked!(
-            pylon_sys::PylonStreamGrabberSetMaxBufferSize(grabber_handle, payload_size as usize),
+            pylon_sys::PylonStreamGrabberSetMaxBufferSize(grabber_handle, payload_size as u64),
             ()
         )?;
 
@@ -229,7 +236,7 @@ impl Device {
                 pylon_sys::PylonStreamGrabberRegisterBuffer(
                     grabber_handle,
                     grab_buffers[i].1.as_mut_ptr() as *mut c_void,
-                    payload_size as usize,
+                    payload_size as u64,
                     &mut grab_buffers[i].0,
                 ),
                 ()
@@ -264,7 +271,7 @@ impl Device {
         let mut channels = 0;
         checked!(
             pylon_sys::PylonDeviceGetNumStreamGrabberChannels(self.handle, &mut channels),
-            channels
+            channels as usize
         )
     }
 
@@ -325,7 +332,7 @@ impl Device {
             )))
         } else {
             let value = vec![0u8; 256];
-            let mut size = value.len();
+            let mut size = value.len() as u64;
             checked!(
                 pylon_sys::PylonDeviceFeatureToString(
                     self.handle,
@@ -362,7 +369,7 @@ impl Device {
                 self.handle,
                 0,
                 self.grab_buffer.as_mut_ptr() as *mut c_void,
-                self.grab_buffer.len(),
+                self.grab_buffer.len() as u64,
                 &mut grab_result,
                 &mut buffer_ready,
                 500,
