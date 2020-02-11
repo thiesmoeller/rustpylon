@@ -15,3 +15,4 @@ pylon:
     script:
     - cd pylon
     - cargo test --all --verbose
+    - PYLON_CAMEMU=2 cargo run --release --example stream_grab
