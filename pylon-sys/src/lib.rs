@@ -4,6 +4,12 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
+impl Default for PylonGrabResult_t {
+    fn default() -> Self {
+        unsafe { std::mem::zeroed() }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{PylonInitialize, PylonTerminate};

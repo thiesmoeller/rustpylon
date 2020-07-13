@@ -163,7 +163,7 @@ impl Device {
 
         let mut handle = 0;
         checked!(
-            pylon_sys::PylonCreateDeviceByIndex(idx as u64, &mut handle),
+            pylon_sys::PylonCreateDeviceByIndex(idx, &mut handle),
             Device {
                 handle,
                 grab_buffer: Vec::new()
@@ -199,7 +199,7 @@ impl Device {
         checked!(
             pylon_sys::PylonDeviceGetStreamGrabber(
                 self.handle,
-                channel as u64,
+                channel,
                 &mut grabber_handle
             ),
             ()
@@ -220,12 +220,12 @@ impl Device {
         (0..BUFFERS).for_each(|_| grab_buffers.push((0, vec![0; payload_size as usize])));
 
         checked!(
-            pylon_sys::PylonStreamGrabberSetMaxNumBuffer(grabber_handle, BUFFERS as u64),
+            pylon_sys::PylonStreamGrabberSetMaxNumBuffer(grabber_handle, BUFFERS),
             ()
         )?;
 
         checked!(
-            pylon_sys::PylonStreamGrabberSetMaxBufferSize(grabber_handle, payload_size as u64),
+            pylon_sys::PylonStreamGrabberSetMaxBufferSize(grabber_handle, payload_size as usize),
             ()
         )?;
 
@@ -236,7 +236,7 @@ impl Device {
                 pylon_sys::PylonStreamGrabberRegisterBuffer(
                     grabber_handle,
                     grab_buffers[i].1.as_mut_ptr() as *mut c_void,
-                    payload_size as u64,
+                    payload_size as usize,
                     &mut grab_buffers[i].0,
                 ),
                 ()
@@ -332,7 +332,7 @@ impl Device {
             )))
         } else {
             let value = vec![0u8; 256];
-            let mut size = value.len() as u64;
+            let mut size = value.len();
             checked!(
                 pylon_sys::PylonDeviceFeatureToString(
                     self.handle,
@@ -369,7 +369,7 @@ impl Device {
                 self.handle,
                 0,
                 self.grab_buffer.as_mut_ptr() as *mut c_void,
-                self.grab_buffer.len() as u64,
+                self.grab_buffer.len(),
                 &mut grab_result,
                 &mut buffer_ready,
                 500,
