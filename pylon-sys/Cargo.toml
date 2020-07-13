@@ -18,4 +18,4 @@ maintenance = { status = "experimental" }
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.53"
+bindgen = "0.47"
