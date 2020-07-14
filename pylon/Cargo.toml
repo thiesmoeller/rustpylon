@@ -17,3 +17,7 @@ maintenance = { status = "experimental" }
 [dependencies]
 pylon-sys = {version = "0.1", path = "../pylon-sys"}
 image = "0.23"
+tokio = {version = "0.2", features=["stream"]}
+
+[dev-dependencies]
+tokio = {version = "0.2", features=["full"]}
