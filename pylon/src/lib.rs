@@ -112,6 +112,10 @@ impl StreamGrabber {
             ()
         )?;
 
+        if grab_result.Status != pylon_sys::EPylonGrabStatus::Grabbed {
+            return Err(PylonError::with_msg("Grabbing failed for frame."));
+        }
+
         let buffer_idx = grab_result.Context as usize;
         let image_res = match grab_result.PixelType {
             EPylonPixelType::PixelType_Mono8 => GrayImage::from_vec(
@@ -141,6 +145,7 @@ impl StreamGrabber {
 #[derive(Debug)]
 pub struct Device {
     handle: pylon_sys::PYLON_DEVICE_HANDLE,
+    pub serial_number: String,
     grab_buffer: Vec<u8>,
 }
 
@@ -162,13 +167,20 @@ impl Device {
         }
 
         let mut handle = 0;
+        checked!(pylon_sys::PylonCreateDeviceByIndex(idx, &mut handle), ());
+
+        let mut info_handle = pylon_sys::PylonDeviceInfo_t::default();
         checked!(
-            pylon_sys::PylonCreateDeviceByIndex(idx, &mut handle),
-            Device {
-                handle,
-                grab_buffer: Vec::new()
-            }
-        )
+            pylon_sys::PylonDeviceGetDeviceInfo(handle, &mut info_handle),
+            ()
+        );
+
+        let dev_serial = unsafe { std::ffi::CStr::from_ptr(info_handle.SerialNumber.as_ptr()) };
+        Ok(Device {
+            handle,
+            serial_number: dev_serial.to_str().unwrap().to_string(),
+            grab_buffer: Vec::new(),
+        })
     }
 
     pub fn open(&mut self) -> Result<(), PylonError> {
@@ -197,11 +209,7 @@ impl Device {
 
         let mut grabber_handle = 0;
         checked!(
-            pylon_sys::PylonDeviceGetStreamGrabber(
-                self.handle,
-                channel,
-                &mut grabber_handle
-            ),
+            pylon_sys::PylonDeviceGetStreamGrabber(self.handle, channel, &mut grabber_handle),
             ()
         )?;
 

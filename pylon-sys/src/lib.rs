@@ -10,6 +10,12 @@ impl Default for PylonGrabResult_t {
     }
 }
 
+impl Default for PylonDeviceInfo_t {
+    fn default() -> Self {
+        unsafe { std::mem::zeroed() }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{PylonInitialize, PylonTerminate};
