@@ -1,3 +1,5 @@
+use core::pin::Pin;
+use core::task::{Context, Poll};
 use image::{DynamicImage, GrayImage};
 use pylon_sys::{self, EPylonGrabStatus, EPylonPixelType};
 use std::ffi::{c_void, CString};
@@ -88,6 +90,24 @@ pub struct StreamGrabber {
     handle: pylon_sys::PYLON_STREAMGRABBER_HANDLE,
     waitobject: pylon_sys::PYLON_WAITOBJECT_HANDLE,
     grab_buffers: Vec<(pylon_sys::PYLON_STREAMBUFFER_HANDLE, Vec<u8>)>,
+}
+
+impl tokio::stream::Stream for StreamGrabber {
+    type Item = Result<DynamicImage, PylonError>;
+
+    fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
+        let mut is_ready = false;
+        checked!(
+            pylon_sys::PylonWaitObjectWait(self.waitobject, 1, &mut is_ready),
+            ()
+        )?;
+        if is_ready {
+            return Poll::Ready(Some(self.grab()));
+        }
+
+        ctx.waker().wake_by_ref();
+        Poll::Pending
+    }
 }
 
 impl StreamGrabber {
