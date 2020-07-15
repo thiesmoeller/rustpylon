@@ -15,16 +15,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
   println!("Device: {}", s);
 
   dev.set_string_feature("AcquisitionMode", "Continuous")?;
-  dev.set_float_feature("AcquisitionFrameRateAbs", 20.0)?;
+  dev.set_float_feature("AcquisitionFrameRateAbs", 50.0)?;
   let stream = dev.get_stream_grabber(0)?;
   dev.execute_command("AcquisitionStart")?;
 
   stream
     .take(100)
     .fold(0, |acc, img| {
-      let path = format!("/tmp/image_{:02}.png", acc);
-      println!("Save to: {}", path);
-      img.unwrap().save(path).unwrap();
+      tokio::task::spawn_blocking(move || {
+        println!("{:?}", std::thread::current());
+        let path = format!("/tmp/image_{:02}.jpg", acc);
+        println!("Save to: {}", path);
+        let out = image::imageops::blur(&img.unwrap(), 20.0);
+        out.save(path).unwrap();
+      });
       acc + 1
     })
     .await;
