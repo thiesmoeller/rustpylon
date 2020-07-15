@@ -187,13 +187,13 @@ impl Device {
         }
 
         let mut handle = 0;
-        checked!(pylon_sys::PylonCreateDeviceByIndex(idx, &mut handle), ());
+        checked!(pylon_sys::PylonCreateDeviceByIndex(idx, &mut handle), ())?;
 
         let mut info_handle = pylon_sys::PylonDeviceInfo_t::default();
         checked!(
             pylon_sys::PylonDeviceGetDeviceInfo(handle, &mut info_handle),
             ()
-        );
+        )?;
 
         let dev_serial = unsafe { std::ffi::CStr::from_ptr(info_handle.SerialNumber.as_ptr()) };
         Ok(Device {
