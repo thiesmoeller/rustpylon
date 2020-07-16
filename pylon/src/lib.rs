@@ -111,17 +111,8 @@ impl tokio::stream::Stream for StreamGrabber {
 }
 
 impl StreamGrabber {
-    pub fn grab(&mut self) -> Result<DynamicImage, PylonError> {
+    fn grab(&mut self) -> Result<DynamicImage, PylonError> {
         let mut is_ready = false;
-        checked!(
-            pylon_sys::PylonWaitObjectWait(self.waitobject, 1000, &mut is_ready),
-            ()
-        )?;
-
-        if !is_ready {
-            return Err(PylonError::with_msg("Timeout grabbing images"));
-        }
-
         let mut grab_result = pylon_sys::PylonGrabResult_t::default();
         checked!(
             pylon_sys::PylonStreamGrabberRetrieveResult(
@@ -132,7 +123,7 @@ impl StreamGrabber {
             ()
         )?;
 
-        if grab_result.Status != pylon_sys::EPylonGrabStatus::Grabbed {
+        if grab_result.Status != pylon_sys::EPylonGrabStatus::Grabbed || !is_ready {
             return Err(PylonError::with_msg("Grabbing failed for frame."));
         }
 
