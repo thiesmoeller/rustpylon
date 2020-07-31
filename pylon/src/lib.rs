@@ -104,7 +104,6 @@ impl tokio::stream::Stream for StreamGrabber {
         if is_ready {
             return Poll::Ready(Some(self.grab()));
         }
-
         ctx.waker().wake_by_ref();
         Poll::Pending
     }
@@ -350,7 +349,7 @@ impl Device {
                 key
             )))
         } else {
-            let value = vec![0u8; 256];
+            let mut value = vec![0u8; 256];
             let mut size = value.len();
             checked!(
                 pylon_sys::PylonDeviceFeatureToString(
@@ -359,7 +358,11 @@ impl Device {
                     value.as_ptr() as *mut i8,
                     &mut size,
                 ),
-                String::from_utf8(value).unwrap()
+                {
+                    // truncate to size with the training \0
+                    value.truncate(size - 1);
+                    String::from_utf8(value).unwrap()
+                }
             )
         }
     }
